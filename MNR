@@ -1,137 +1,184 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Zap, Droplets, TrendingUp, AlertTriangle } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROTOCOL: LINGUA | STATION_77</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @font-face { font-family: 'VT323'; src: url('https://fonts.googleapis.com/css2?family=VT323&display=swap'); }
+        
+        body { background: #000; color: #00FF41; font-family: 'VT323', 'Courier New', monospace; overflow: hidden; height: 100vh; }
+        
+        /* CRT 스캔라인 & 플리커 효과 */
+        .crt::before {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 100; background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+        .crt::after {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: rgba(18, 16, 16, 0.1); opacity: 0; z-index: 100; pointer-events: none;
+            animation: flicker 0.15s infinite;
+        }
+        @keyframes flicker { 0% { opacity: 0.27861; } 5% { opacity: 0.34769; } 10% { opacity: 0.23604; } 100% { opacity: 0.25; } }
+        
+        /* 스네이크 라인 애니메이션 */
+        .scanline {
+            width: 100%; height: 2px; background: rgba(0, 255, 65, 0.1); position: absolute;
+            top: 0; z-index: 101; animation: scanline 8s linear infinite;
+        }
+        @keyframes scanline { 0% { top: 0; } 100% { top: 100%; } }
 
-// --- 스킨 및 애니메이션 스타일 ---
-const styles = `
-  @keyframes flicker {
-    0% { opacity: 0.9; } 5% { opacity: 0.8; } 10% { opacity: 0.9; }
-    15% { opacity: 0.85; } 25% { opacity: 0.95; } 100% { opacity: 1; }
-  }
-  .crt-overlay {
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-    background-size: 100% 2px, 3px 100%;
-    pointer-events: none;
-  }
-  .scanline {
-    width: 100%; height: 100px; z-index: 10;
-    background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(0,255,65,0.1) 50%, rgba(0,0,0,0) 100%);
-    opacity: 0.1; position: absolute; bottom: 100%; animation: scanline 10s linear infinite;
-  }
-  @keyframes scanline { 0% { bottom: 100%; } 100% { bottom: -100%; } }
-  .matrix-text { text-shadow: 0 0 5px #00FF41; font-family: 'Courier New', monospace; }
-`;
+        .glitch-red { animation: shake 0.2s infinite; color: #ff0000 !important; text-shadow: 2px 2px #550000; }
+        @keyframes shake { 0% { transform: translate(0,0); } 20% { transform: translate(-2px, 1px); } 100% { transform: translate(2px, -1px); } }
 
-export default function ProtocolLingua() {
-  const [logs, setLogs] = useState([]);
-  const [input, setInput] = useState('');
-  const [wallet, setWallet] = useState({ credits: 500, xmr: 0 });
-  const [xmrPrice, setXmrPrice] = useState({ price: 241.52, change: 2.4 });
-  const [oxygen, setOxygen] = useState(100);
-  const scrollRef = useRef(null);
+        #log-window::-webkit-scrollbar { width: 4px; }
+        #log-window::-webkit-scrollbar-thumb { background: #00FF41; }
+    </style>
+</head>
+<body class="crt p-4 md:p-8">
+    <div class="scanline"></div>
 
-  // 1. 실시간 모네로 시세 시뮬레이션 (원래는 API 호출)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const vol = (Math.random() - 0.5) * 2;
-      setXmrPrice(prev => ({
-        price: parseFloat((prev.price + vol).toFixed(2)),
-        change: parseFloat(vol.toFixed(2))
-      }));
-      setOxygen(prev => Math.max(0, prev - 0.5));
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // 2. 에스페란토 번역 함수 (간이 사전 방식)
-  const translateToEsperanto = (text) => {
-    const dict = { "안녕": "Saluton", "배고파": "Mi malsatas", "코인": "Kripto", "사랑": "Amo", "가자": "Ni iru" };
-    return text.split(' ').map(word => dict[word] || word + "on").join(' ');
-  };
-
-  // 3. 메시지 전송 로직
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!input) return;
-
-    const newLog = {
-      id: Date.now(),
-      sender: "USER_77",
-      original: input,
-      translated: translateToEsperanto(input),
-      time: new Date().toLocaleTimeString(),
-      decoded: false
-    };
-
-    setLogs(prev => [...prev.slice(-19), newLog]);
-    setOxygen(prev => Math.min(100, prev + 5));
-    setInput('');
-  };
-
-  // 4. 디코딩 (코인 결제)
-  const decodeMessage = (id) => {
-    const cost = 0.01;
-    if (wallet.xmr < cost) return alert("INSUFFICIENT XMR");
-    
-    setWallet(prev => ({ ...prev, xmr: prev.xmr - cost }));
-    setLogs(prev => prev.map(log => log.id === id ? { ...log, decoded: true } : log));
-  };
-
-  return (
-    <div className="relative min-h-screen bg-black text-[#00FF41] p-4 overflow-hidden select-none">
-      <style>{styles}</style>
-      <div className="crt-overlay fixed inset-0 z-50"></div>
-      <div className="scanline"></div>
-
-      {/* 헤더: 마켓 및 상태창 */}
-      <header className="border border-[#00FF41] p-2 mb-4 flex justify-between items-center matrix-text text-xs">
-        <div className="flex gap-4">
-          <span className="flex items-center gap-1"><TrendingUp size={14}/> XMR: ${xmrPrice.price} ({xmrPrice.change}%)</span>
-          <span className="flex items-center gap-1"><Droplets size={14}/> OXYGEN: {oxygen.toFixed(1)}%</span>
+    <header class="border border-[#00FF41] p-3 mb-6 flex flex-wrap justify-between items-center text-sm md:text-lg">
+        <div class="flex gap-6">
+            <span id="xmr-ticker">XMR: $241.52 (<span class="text-green-400">▲2.4%</span>)</span>
+            <span id="void-ticker">$VOID: 1.02</span>
         </div>
-        <div className="flex gap-4">
-          <span>CREDITS: {wallet.credits}</span>
-          <span>XMR: {wallet.xmr.toFixed(4)}</span>
+        <div class="flex gap-6">
+            <span>OXYGEN: <span id="oxygen-val">100</span>%</span>
+            <span class="text-yellow-400">WALLET: <span id="user-credits">500</span> $CREDITS / <span id="user-xmr">0.0000</span> XMR</span>
         </div>
-      </header>
+    </header>
 
-      {/* 메인 로그 영역 */}
-      <main className="h-[70vh] border border-[#00FF41] p-4 overflow-y-auto mb-4 custom-scrollbar bg-black/50">
-        {logs.length === 0 && <div className="opacity-50 italic">[ NO SIGNAL DETECTED... ]</div>}
-        {logs.map((log) => (
-          <div key={log.id} className="mb-3 animate-[flicker_0.5s_infinite]">
-            <span className="opacity-50">[{log.time}] &lt;{log.sender}&gt;: </span>
-            <span className="cursor-help transition-all" onClick={() => decodeMessage(log.id)}>
-              {log.decoded ? log.original : log.translated}
-            </span>
-            {!log.decoded && <span className="text-[10px] ml-2 opacity-30">[CLICK TO DECODE: 0.01 XMR]</span>}
-          </div>
-        ))}
-        <div ref={scrollRef} />
-      </main>
-
-      {/* 하단 입력창 */}
-      <section className="fixed bottom-6 left-4 right-4">
-        <form onSubmit={handleSubmit} className="flex gap-2 items-center">
-          <label className="matrix-text shrink-0">C:\USER\LINGUA&gt;</label>
-          <input 
-            type="text" 
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="bg-transparent border-none outline-none text-[#00FF41] w-full caret-[#00FF41] matrix-text"
-            autoFocus
-          />
-        </form>
-      </section>
-
-      {/* 시스템 경고 (산소 부족 시) */}
-      {oxygen < 20 && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] bg-red-900/80 border-2 border-red-500 p-8 text-red-500 animate-pulse text-center">
-          <AlertTriangle size={48} className="mx-auto mb-4" />
-          <h2 className="text-2xl font-bold">SYSTEM CRITICAL</h2>
-          <p>OXYGEN LEVEL LOW - LOG DELETION IMMINENT</p>
-        </div>
-      )}
+    <div id="log-window" class="h-[60vh] border border-[#00FF41] p-4 overflow-y-auto mb-6 text-lg leading-relaxed bg-black/40">
+        <div class="opacity-50 mb-2">[ SYSTEM ] PROTOCOL: LINGUA V.0.77 INITIALIZED...</div>
+        <div class="opacity-50 mb-4">[ SYSTEM ] WAITING FOR ENCRYPTED SIGNAL...</div>
+        <div id="logs" class="space-y-3"></div>
     </div>
-  );
-}
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="md:col-span-3 border border-[#00FF41] p-2 flex items-center bg-black/60">
+            <span class="mr-3 shrink-0">C:\USER\LINGUA></span>
+            <input type="text" id="terminal-input" class="bg-transparent border-none outline-none text-[#00FF41] w-full caret-white" autofocus placeholder="메시지를 입력하거나 'buy [양]', 'sell [양]' 입력...">
+        </div>
+        <div class="border border-[#00FF41] p-2 flex justify-center items-center text-xs opacity-70">
+            [ MARKET STATUS: STABLE ]
+        </div>
+    </div>
+
+    <script>
+        // 데이터 초기화
+        let credits = 500;
+        let xmrOwned = 0;
+        let oxygen = 100;
+        let xmrPrice = 241.52;
+        let xmrChange = 2.4;
+
+        const esperantoDict = { "안녕": "Saluton", "우정": "Amikeco", "돈": "Mono", "위험": "Danĝero", "사랑": "Amo", "지구": "Tero" };
+
+        function translate(text) {
+            return text.split(' ').map(w => esperantoDict[w] || w + "on").join(' ');
+        }
+
+        const input = document.getElementById('terminal-input');
+        const logArea = document.getElementById('logs');
+
+        // 입력 처리
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && input.value) {
+                const val = input.value.trim();
+                
+                if (val.startsWith('buy ')) {
+                    executeTrade(val.split(' ')[1], 'buy');
+                } else if (val.startsWith('sell ')) {
+                    executeTrade(val.split(' ')[1], 'sell');
+                } else {
+                    postLog(val);
+                }
+                
+                input.value = '';
+                updateUI();
+            }
+        });
+
+        function postLog(text) {
+            const esp = translate(text);
+            const entry = document.createElement('div');
+            entry.className = "group";
+            entry.innerHTML = `
+                <span class="opacity-30">[${new Date().toLocaleTimeString()}]</span> 
+                <span class="text-white hover:text-[#00FF41] cursor-pointer transition-all" 
+                      onclick="decodeLog(this, '${text.replace(/'/g, "\\'")}')">
+                    ${esp}
+                </span>
+                <span class="text-[10px] opacity-20 ml-2 group-hover:opacity-100">[COST: 0.001 XMR TO DECODE]</span>
+            `;
+            logArea.appendChild(entry);
+            logArea.parentElement.scrollTop = logArea.parentElement.scrollHeight;
+            oxygen = Math.min(100, oxygen + 3);
+        }
+
+        function decodeLog(el, original) {
+            if (xmrOwned >= 0.001) {
+                xmrOwned -= 0.001;
+                el.innerText = original;
+                el.style.color = "#00FF41";
+                updateUI();
+            } else {
+                alert("INSUFFICIENT XMR - ACCESS DENIED");
+            }
+        }
+
+        function executeTrade(amount, type) {
+            const qty = parseFloat(amount);
+            if (isNaN(qty)) return;
+
+            if (type === 'buy') {
+                const cost = qty * xmrPrice;
+                if (credits >= cost) {
+                    credits -= cost;
+                    xmrOwned += qty;
+                }
+            } else {
+                if (xmrOwned >= qty) {
+                    xmrOwned -= qty;
+                    credits += qty * xmrPrice;
+                }
+            }
+            oxygen = Math.min(100, oxygen + 1);
+        }
+
+        function updateUI() {
+            document.getElementById('user-credits').innerText = credits.toFixed(0);
+            document.getElementById('user-xmr').innerText = xmrOwned.toFixed(4);
+            document.getElementById('oxygen-val').innerText = oxygen.toFixed(1);
+            document.getElementById('xmr-ticker').innerHTML = `XMR: $${xmrPrice.toFixed(2)} (<span class="${xmrChange >= 0 ? 'text-green-400' : 'text-red-500'}">${xmrChange >= 0 ? '▲' : '▼'}${Math.abs(xmrChange)}%</span>)`;
+        }
+
+        // 실시간 마켓 및 시스템 루프
+        setInterval(() => {
+            // 산소 감소
+            oxygen = Math.max(0, oxygen - 0.5);
+            
+            // 시세 변동
+            const vol = (Math.random() - 0.5) * 5;
+            xmrPrice += vol;
+            xmrChange = (vol / xmrPrice * 100).toFixed(1);
+
+            // 산소 부족 시 연출
+            if (oxygen < 20) {
+                document.body.classList.add('glitch-red');
+            } else {
+                document.body.classList.remove('glitch-red');
+            }
+
+            if (oxygen === 0) {
+                logArea.innerHTML = "<div class='text-red-500'>[ FATAL ERROR: OXYGEN DEPLETED. LOGS PURGED. ]</div>";
+            }
+            
+            updateUI();
+        }, 3000);
+    </script>
+</body>
+</html>
